@@ -10,7 +10,7 @@ count = 0  # counter to name packets
 def main():
     while True:
         sniff(count=1, prn=output)
-        sleep(5)  # Wait one minute before capturing another packet
+        sleep(60)  # Wait one minute before capturing another packet
 
 
 def output(packet):
@@ -154,4 +154,5 @@ def output(packet):
     print(tabulate(osi_table, headers=osi_headers, tablefmt="fancy_grid"))
 
 
-main()
+if __name__ == "__main__":
+    main()
