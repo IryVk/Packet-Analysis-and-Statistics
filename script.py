@@ -130,12 +130,12 @@ def output(packet):
             f"Port Number\nSource: {l4['src_port']['port']}\nDestination: {l4['dst_port']['port']}",
             l3["proto"],
         ]
-        src_desc = l4['src_port']['desc']
+        src_desc = l4["src_port"]["desc"]
         # format desc if it's too long
         if src_desc:
             if len(src_desc) > 30:
                 src_desc = src_desc[:30]
-        dst_desc = l4['dst_port']['desc']
+        dst_desc = l4["dst_port"]["desc"]
         if dst_desc:
             if len(dst_desc) > 30:
                 dst_desc = dst_desc[:30]

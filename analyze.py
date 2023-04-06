@@ -134,6 +134,8 @@ def maskToCidr(ip_addr, mask):
 
 
 HOST_IP, HOST_SUBNET = getHost(IFACE)
+
+
 def getSubnet(ip_addr, host_ip=None, host_mask=None):
     """Get subnet mask of IP if possible"""
     global HOST_IP, HOST_SUBNET
@@ -154,7 +156,7 @@ def getSubnet(ip_addr, host_ip=None, host_mask=None):
         return None
 
     # If it is a public ip, perform a whois query to find cidr
-    
+
     try:
         obj = IPWhois(ip_addr)
         res = obj.lookup_whois()
@@ -177,7 +179,7 @@ def translatePort(port, proto):
                     "name": prt.name,
                     "desc": prt.description,
                 }
-        
+
         return {
             "port": port,
             "type": "Well-known",
@@ -193,7 +195,7 @@ def translatePort(port, proto):
                     "type": "Registered",
                     "name": prt.name,
                     "desc": prt.description,
-                } 
+                }
         return {
             "port": port,
             "type": "Registered",
@@ -202,21 +204,34 @@ def translatePort(port, proto):
         }
     else:
         return {
-                "port": port, 
-                "type": "Dynamic/Private", 
-                "name": None, 
-                "desc": None,
+            "port": port,
+            "type": "Dynamic/Private",
+            "name": None,
+            "desc": None,
         }
 
 
 def analyzeL2(packet):
     """Analyzes layer 2 of the packet"""
     # PDU header info
-    eth_pdu_type = "Ethernet II" if packet.name == "Ethernet" else packet.name# 802.3, 802.11, Ethernet ii,...
+    eth_pdu_type = (
+        "Ethernet II" if packet.name == "Ethernet" else packet.name
+    )  # 802.3, 802.11, Ethernet ii,...
     src_mac = packet.src
     dst_mac = packet.dst
-    packet_proto = str(packet[2]).split(" ")[0]  # Protocol: STP, ICMP, ARP,...
-    size = packet.len
+
+    if packet.haslayer(Ether):
+        try:
+            packet_proto = ETHER_TYPES[packet[Ether].type]
+        except:
+            packet_proto = packet[Ether].type
+
+    else:
+        try:
+            packet_proto = str(packet[2]).split(" ")[0]  # Protocol: STP, ICMP, ARP,...
+        except:
+            packet_proto = None
+    size = len(packet)
 
     # Determine if packet is unicast, multicast, or broadcast
     if dst_mac == "ff:ff:ff:ff:ff:ff":
@@ -282,7 +297,7 @@ def analyzeL3(packet):
         "src": src,
         "dst": dst,
         "proto": proto,
-        "ver" : version,
+        "ver": version,
         "size": size,
         "ttl": ttl,
         "src_pub_priv": src_ip_type,
@@ -308,10 +323,9 @@ def analyzeL4(packet):
         return None
 
     proto = str(packet[2]).split(" ")[0].lower()
-    
+
     # Find port and application type
     src_port = translatePort(packet.sport, proto)
     dst_port = translatePort(packet.dport, proto)
 
     return {"src_port": src_port, "dst_port": dst_port}
-

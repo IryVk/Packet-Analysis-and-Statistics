@@ -16,6 +16,8 @@ def count(packet):
     """Count number of control and data PDUs"""
     global CNT, DATA, CONTROL
 
+    proto = None
+
     if packet.haslayer(UDP):
         # If packet is DNS
         if packet[UDP].sport == 53 or packet[UDP].dport == 53:
@@ -23,13 +25,36 @@ def count(packet):
             PDUS.append("DNS")
             return
         # If packet is DHCP
-        elif packet[UDP].sport == 67 or packet[UDP].sport == 68 or packet[UDP].dport == 67 or packet[UDP].dport == 68:
+        elif (
+            packet[UDP].sport == 67
+            or packet[UDP].sport == 68
+            or packet[UDP].dport == 67
+            or packet[UDP].dport == 68
+        ):
             CNT += 1
             PDUS.append("DHCP")
             return
-        
-    proto = str(packet[2]).split(" ")[0]
-    #print(proto)
+
+    # If packet is CDP
+    if packet.haslayer(SNAP):
+        if packet[SNAP].code == 0x2000:
+            PDUS.append("CDP")
+            CNT += 1
+            return
+
+    # If packet does not have IP layer (ARP,etc...)
+    if packet.haslayer(Ether) and not packet.haslayer(IP):
+        try:
+            proto = ETHER_TYPES[packet[Ether].type]
+        except:
+            pass
+
+    if not proto:
+        try:
+            proto = str(packet[2]).split(" ")[0]  # Protocol: STP, ICMP, ARP,...
+        except:
+            return
+    # print(proto)
     PDUS.append(proto)
     if proto in CONTROL:
         CNT += 1
@@ -47,9 +72,9 @@ def piePlot(x, y):
     """Make a piechart of the data"""
     pie = np.array([x, y])
     plt.title("Ratio of Data to Control PDUs")
-    plt.pie(pie, labels=[f"Data ({x})",f"Control ({y})"], explode=[0,0.2])
+    plt.pie(pie, labels=[f"Data ({x})", f"Control ({y})"], explode=[0, 0.2])
     plt.legend(title="PDUs:")
-    plt.show() 
+    plt.show()
 
 
 def barPlot():
@@ -78,5 +103,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
