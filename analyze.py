@@ -49,6 +49,7 @@ def getClass(ip_addr):
     """Know an IP address class"""
     ip_octets = ip_addr.split(".")  # Splits ip into 4 octets
 
+    # Checks which class range ip belongs to
     if 1 <= int(ip_octets[0]) <= 126:
         return "a"
     if 128 <= int(ip_octets[0]) <= 191:
@@ -75,7 +76,7 @@ def getNetId(ip_addr, mask):
     mask_octets = mask.split(".")
     ip_bin = [
         int(x) for x in ip_octets
-    ]  # Convert octets to binary to preform logival & operation
+    ]  # Convert octets to binary to preform logical & operation
     mask_bin = [int(x) for x in mask_octets]
 
     # Iterate over each octet to preform & operation and get network id
@@ -123,9 +124,10 @@ def cidrToMask(cidr):
 
 def maskToCidr(ip_addr, mask):
     """Converts Subnet Mask to CIDR"""
-    mask_octets = mask.split(".")
-    mask_bin = [bin(int(x) + 256)[3:] for x in mask_octets]
+    mask_octets = mask.split(".")  # Splits mask into 4 octets
+    mask_bin = [bin(int(x) + 256)[3:] for x in mask_octets]  # Convert to binary
     cidr = 0
+    # Count number of 1's in mask to find cidr
     for byte in mask_bin:
         for bit in byte:
             if bit == "1":
@@ -133,7 +135,7 @@ def maskToCidr(ip_addr, mask):
     return ip_addr + "/" + str(cidr)
 
 
-HOST_IP, HOST_SUBNET = getHost(IFACE)
+HOST_IP, HOST_SUBNET = getHost(IFACE)  # Find Host IP and Host Subnet
 
 
 def getSubnet(ip_addr, host_ip=None, host_mask=None):
@@ -153,10 +155,9 @@ def getSubnet(ip_addr, host_ip=None, host_mask=None):
             ip_addr, host_mask
         ):  # If the ip has same network id
             return host_mask
-        return None
+        return None  # Return None if subnet mask cannot be found
 
     # If it is a public ip, perform a whois query to find cidr
-
     try:
         obj = IPWhois(ip_addr)
         res = obj.lookup_whois()
@@ -164,14 +165,19 @@ def getSubnet(ip_addr, host_ip=None, host_mask=None):
             return cidrToMask(cidr)
     except:
         pass
+    # If we cant find mask from whois query, return None
     return None
 
 
 def translatePort(port, proto):
     """Translate port number to application/service"""
+    # Well-known ports
     if 0 <= port <= 1023:
-        ports = w.get_ports(str(port))
+        ports = w.get_ports(
+            str(port)
+        )  # Use whatisport library to translate port number to service
         for prt in ports:
+            # If we can find the name and description, return dictionary of info
             if proto in prt.protocol:
                 return {
                     "port": port,
@@ -179,16 +185,20 @@ def translatePort(port, proto):
                     "name": prt.name,
                     "desc": prt.description,
                 }
-
+        # If we can't find name, return port number only
         return {
             "port": port,
             "type": "Well-known",
             "name": None,
             "desc": None,
         }
+    # Registered ports
     elif 1024 <= port <= 49151:
-        ports = w.get_ports(str(port))
+        ports = w.get_ports(
+            str(port)
+        )  # Use whatisport library to translate port number to service
         for prt in ports:
+            # If we can find the name and description, return dictionary of info
             if proto in prt.protocol:
                 return {
                     "port": port,
@@ -196,12 +206,14 @@ def translatePort(port, proto):
                     "name": prt.name,
                     "desc": prt.description,
                 }
+        # If we can't find name, return port number only
         return {
             "port": port,
             "type": "Registered",
             "name": None,
             "desc": None,
         }
+    # Dynamic/Private ports
     else:
         return {
             "port": port,
@@ -214,23 +226,24 @@ def translatePort(port, proto):
 def analyzeL2(packet):
     """Analyzes layer 2 of the packet"""
     # PDU header info
-    eth_pdu_type = (
-        "Ethernet II" if packet.name == "Ethernet" else packet.name
-    )  # 802.3, 802.11, Ethernet ii,...
+    eth_pdu_type = ("Ethernet II" if packet.name == "Ethernet" else packet.name)  # 802.3, 802.11, Ethernet ii,...
     src_mac = packet.src
     dst_mac = packet.dst
 
+    # If packet is Ethernet II packet find protocol
     if packet.haslayer(Ether):
         try:
             packet_proto = ETHER_TYPES[packet[Ether].type]
         except:
             packet_proto = packet[Ether].type
 
+    # If packet is another standard, find protcol type by index
     else:
         try:
             packet_proto = str(packet[2]).split(" ")[0]  # Protocol: STP, ICMP, ARP,...
         except:
             packet_proto = None
+
     size = len(packet)
 
     # Determine if packet is unicast, multicast, or broadcast
@@ -240,6 +253,7 @@ def analyzeL2(packet):
         packet_type = "Multicast"
     else:
         packet_type = "Unicast"
+
     # Return dict of info
     return {
         "eth_type": eth_pdu_type,
@@ -271,22 +285,26 @@ def analyzeL3(packet):
     dst_ip_type = "Private" if isPrivate(dst) else "Public"
 
     # Find details about subnet mask
-    if src_mask := getSubnet(src):
+    if src_mask := getSubnet(
+        src
+    ):  # if we can get subnet mask, calculate all other info
         src_sub = isSubnetted(src, src_mask)
         src_netid = getNetId(src, src_mask)
         src_cidr = maskToCidr(src, src_mask)
         src_broadcast = getBroadcast(src, src_mask)
-    else:
+    else:  # if we cannot, set everything to none
         src_sub = None
         src_netid = None
         src_cidr = None
         src_broadcast = None
-    if dst_mask := getSubnet(dst):
+    if dst_mask := getSubnet(
+        dst
+    ):  # if we can get subnet mask, calculate all other info
         dst_sub = isSubnetted(dst, dst_mask)
         dst_netid = getNetId(dst, dst_mask)
         dst_cidr = maskToCidr(dst, dst_mask)
         dst_broadcast = getBroadcast(dst, dst_mask)
-    else:
+    else:  # if we cannot, set everything to none
         dst_sub = None
         dst_netid = None
         dst_cidr = None
@@ -322,10 +340,27 @@ def analyzeL4(packet):
         print("PDU does not have UDP/TCP Layer")
         return None
 
+    # Find transport layer protocol
     proto = str(packet[2]).split(" ")[0].lower()
 
     # Find port and application type
     src_port = translatePort(packet.sport, proto)
     dst_port = translatePort(packet.dport, proto)
 
-    return {"src_port": src_port, "dst_port": dst_port}
+    return {"src_port": src_port, "dst_port": dst_port, "proto": proto.upper()}
+
+
+def convHex(hexdump):
+    """Converts a hexdump to bits (0 and 1)"""\
+    # Find all bytes in the dump
+    hex_bytes = re.findall(r" ([\dABCDEF]{2})", hexdump)
+
+    # Convert hexadecimal to binary
+    def hexToBin(n):
+        return bin(int(n, 16))[2:].zfill(8)
+    
+    # Map conversion function to all bytes
+    bin_bytes = map(hexToBin, hex_bytes)
+    
+    # Return raw bits
+    return " ".join(list(bin_bytes))
