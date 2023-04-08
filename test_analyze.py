@@ -4,7 +4,7 @@ from scapy.all import *
 from analyze import *
 
 
-# NOTE: To run this file, install pytest and type "pytest test_analyze.py" in the terminal
+# NOTE: To run this file, install pytest "pip install pytest" and type "pytest test_analyze.py" in the terminal
 
 IFACE = "Wi-Fi"  # Network intefrace used, change accodrding to interface used
 

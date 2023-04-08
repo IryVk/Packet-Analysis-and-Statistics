@@ -36,10 +36,11 @@ def capture():
     sniff(count=SAMPLE, prn=count)
 
 
-def count(packet):
+def count(packet, save=True):
     """Count number of control and data PDUs"""
     # Save packets in a pcap file
-    wrpcap(f"statistics/Sample {FILENAME}.pcap", packet, append=True)
+    if save:
+        wrpcap(f"statistics/Sample {FILENAME}.pcap", packet, append=True)
 
     global DATA, CONTROL, CNT
     # Iterate over CONTROL PDUs list and if they are present in PDU, increase count of control and return
