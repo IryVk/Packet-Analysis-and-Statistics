@@ -359,7 +359,7 @@ def hexToBin(n):
 
 def convHex(hexdump):
     """Converts a hexdump to bits (0 and 1)"""
-    # Find all bytes in the dump
+    # Find all bytes in the dump using regex
     hex_bytes = re.findall(r" ([\dABCDEF]{2})", hexdump)
 
     # Map conversion function to all bytes

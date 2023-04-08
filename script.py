@@ -216,8 +216,8 @@ def output(packet):
             f"Ethertype {l2['proto']}"
             if packet.haslayer(Ether)
             else f"Length {l2['size']}",
-            "",
-            "",
+            "...",
+            "...",
         ]
     ]
     print(tabulate(l2_struct, headers=l2_head, tablefmt="rounded_grid"))
