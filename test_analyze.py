@@ -1,9 +1,12 @@
 import ipaddress
 
+from scapy.all import *
 from analyze import *
 
 
-IFACE = "Wi-Fi"
+# NOTE: To run this file, install pytest and type "pytest test_analyze.py" in the terminal
+
+IFACE = "Wi-Fi"  # Network intefrace used, change accodrding to interface used
 
 
 def test_getHost():
@@ -116,3 +119,41 @@ def test_translatePort():
 
     # Dynamic/private ports example
     assert translatePort(50000, "tcp")["type"] == "Dynamic/Private"
+
+
+def test_analyzeL2():
+    """Asserts that analyzeL2() produces correct info using a packet built by scapy"""
+    packet = Ether() / IP() / TCP()
+    info = analyzeL2(packet)
+    assert info["src"] == packet[Ether].src
+    assert info["dst"] == packet[Ether].dst
+    assert info["proto"] == ETHER_TYPES[packet[Ether].type]
+
+
+def test_analyzeL3():
+    """Asserts that analyzeL3() produces correct info using a packet built by scapy"""
+    packet = Ether() / IP() / TCP()
+    info = analyzeL3(packet)
+
+    assert info["src"] == packet[IP].src
+    assert info["dst"] == packet[IP].dst
+
+    # Table to translate protocol numbers to name
+    prefix = "IPPROTO_"
+    proto_table = {
+        num: name[len(prefix) :]
+        for name, num in vars(socket).items()
+        if name.startswith(prefix)
+    }
+
+    assert info["proto"] == proto_table[packet[IP].proto]
+    assert info["ver"] == packet[IP].version
+
+
+def test_analyzeL4():
+    """Asserts that analyzeL4() produces correct info using a packet built by scapy"""
+    packet = Ether() / IP() / TCP()
+    info = analyzeL4(packet)
+
+    assert info["src_port"]["port"] == packet[TCP].sport
+    assert info["dst_port"]["port"] == packet[TCP].dport

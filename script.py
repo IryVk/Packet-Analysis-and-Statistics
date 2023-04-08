@@ -5,28 +5,34 @@ from tabulate import tabulate
 from datetime import datetime
 
 
+# NOTE: Some functions may only work on windows over Wi-Fi, if you're using another iterface, change IFACE in analyze.py
+
 count = 0  # counter to name packets
-FILENAME = datetime.now().strftime('%d-%m-%Y %H-%M-%S')
+FILENAME = datetime.now().strftime("%d-%m-%Y %H-%M-%S")  # Filename prefix from date and time
 
 # Adjust print function to also print to Log file as well as terminal
 old_print = print
 # NOTE: content will appear in the txt file when the script is finished
 log_file = open(f"captured/captured {FILENAME}.txt", "a", encoding="utf-8")
-print = lambda *args, **kw: old_print(*args, **kw) or old_print(*args, file=log_file, **kw)
+print = lambda *args, **kw: old_print(*args, **kw) or old_print(
+    *args, file=log_file, **kw
+)
 
 
 def main():
-    old_print("""Script will run in 5 seconds, a random packet will be captured and analyzed every minute.
+    old_print(
+        """Script will run in 5 seconds, a random packet will be captured and analyzed every minute.
 To terminate script, press ctrl + c and wait for any running processes to finish.
 In /captured/, you can find a log file of the output info, a pcap of the captured packets and a graphic pdf dump of each packet.
-""")
+        """
+    )
     sleep(5)
     try:
         while True:
             sniff(count=1, prn=output)
             sleep(60)  # Wait one minute before capturing another packet
     # To ensure that the packet being analyzed is done before ending program
-    except KeyboardInterrupt:  
+    except KeyboardInterrupt:
         log_file.close()
 
 
@@ -128,7 +134,7 @@ def output(packet):
             f"MAC Address\nSource: {l2['src']}\nDestination: {l2['dst']}",
             l2["eth_type"],
         ],
-        [1, "Physical Layer", "Bit", "Signaling", l2["eth_type"]],
+        [1, "Physical Layer", "Bit", "Signaling"],
     ]
 
     # If packet has ip layer, put info in osi table
@@ -182,39 +188,80 @@ def output(packet):
     print("-" * 100)
 
     print("Bits")
-    bits = convHex(hexdump(packet, True)) # Convert hexdump of packet to binary
+    bits = convHex(hexdump(packet, True))  # Convert hexdump of packet to binary
     l1_head = ["#", "Layer Name", "Bits"]
-    l1_struct = [[1, "Physical Layer", bits[:60] + "..."]]  # Print only part of the bits to terminal because it's too long
+    l1_struct = [
+        [1, "Physical Layer", bits[:75] + "..."]
+    ]  # Print only part of the bits to terminal because it's too long
     print(tabulate(l1_struct, headers=l1_head, tablefmt="rounded_grid"))
     print("-" * 100)
 
     print("Ethernet Frame")
-    l2_head = ["#", "Layer Name" ,"Destination MAC", "Source MAC", "Ethertype/Length", "Packet", "FCS"]
+    l2_head = [
+        "#",
+        "Layer Name",
+        "Destination MAC",
+        "Source MAC",
+        "Ethertype/Length",
+        "Packet",
+        "FCS",
+    ]
     # If packet is Ethernet II print ethertype, else print length
-    l2_struct = [[2, "Data Link Layer", l2["dst"], l2["src"], f"Ethertype {l2['proto']}" if packet.haslayer(Ether) else f"Length {len(packet)}", "", ""]]
+    l2_struct = [
+        [
+            2,
+            "Data Link Layer",
+            l2["dst"],
+            l2["src"],
+            f"Ethertype {l2['proto']}"
+            if packet.haslayer(Ether)
+            else f"Length {l2['size']}",
+            "",
+            "",
+        ]
+    ]
     print(tabulate(l2_struct, headers=l2_head, tablefmt="rounded_grid"))
     print("-" * 100)
 
     if l3:
         print("IP Packet")
-        l3_head = ["#", "Layer Name" ,"Destination IP", "Source IP", "Protocol", "...", "Segment"]
-        l3_struct = [[3, "Network Layer", l3["dst"], l3["src"], l3["proto"], "", ""]]
+        l3_head = [
+            "#",
+            "Layer Name",
+            "Destination IP",
+            "Source IP",
+            "Protocol",
+            "...",
+            "Segment",
+        ]
+        l3_struct = [
+            [3, "Network Layer", l3["dst"], l3["src"], l3["proto"], "...", "..."]
+        ]
         print(tabulate(l3_struct, headers=l3_head, tablefmt="rounded_grid"))
         print("-" * 100)
 
     if l4:
         print("Segment")
-        l4_head = ["#", "Layer Name" ,"Destination Port", "Source Port", "...", "Data"]
-        l4_struct = [[4, "Transport Layer", l4["dst_port"]["port"], l4["src_port"]["port"], "", ""]]
+        l4_head = ["#", "Layer Name", "Destination Port", "Source Port", "...", "Data"]
+        l4_struct = [
+            [
+                4,
+                "Transport Layer",
+                l4["dst_port"]["port"],
+                l4["src_port"]["port"],
+                "...",
+                "...",
+            ]
+        ]
         print(tabulate(l4_struct, headers=l4_head, tablefmt="rounded_grid"))
         print("-" * 100)
-
 
     # Save captured packets in a pcap file
     wrpcap(f"captured/captured {FILENAME}.pcap", packet, append=True)
     # Make a pdf of packet details
-    packet.pdfdump(f"captured/packet_{count} {FILENAME}.pdf",layer_shift=1)
-    
+    packet.pdfdump(f"captured/packet_{count} {FILENAME}.pdf", layer_shift=1)
+
+    old_print(f"Finished analysis of packet {count}\n")
 
 
 if __name__ == "__main__":

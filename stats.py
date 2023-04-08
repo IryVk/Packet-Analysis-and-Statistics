@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 
 from scapy.all import *
 from datetime import datetime
@@ -16,13 +15,15 @@ CONTROL = ["STP", "DTP", "ARP", "ICMP", "DNS", "DHCP", "CDP"]
 CNT = 0  # Counter for control PDUs
 DATA = 0  # Counter for data PDUs
 PDUS = []  # List to store PDU protocols
-FILENAME = datetime.now().strftime('%d-%m-%Y %H-%M-%S')
+FILENAME = datetime.now().strftime("%d-%m-%Y %H-%M-%S")  # Filename prefix from date and time
 
 
 def main():
-    print(f"""Script is now running, please wait for the sample size of {SAMPLE} packets to be collected.
+    print(
+        f"""Script is now running, please wait for the sample size of {SAMPLE} packets to be collected.
 Please be patient, it might take some time depending on your device's network traffic.
-In /statistics/, you can find a pcap of the sample collected, and the graphs displayed""")
+In /statistics/, you can find a pcap of the sample collected, and the graphs displayed"""
+    )
     capture()
     piePlot(DATA, CNT)
     barPlot()
@@ -33,7 +34,6 @@ def capture():
     """Capture packets"""
     global SAMPLE
     sniff(count=SAMPLE, prn=count)
-        
 
 
 def count(packet):
@@ -48,9 +48,19 @@ def count(packet):
             CNT += 1
             PDUS.append(item)
             return
+        # If packet is CDP or DTP
+        elif packet.haslayer(SNAP):
+            if packet[SNAP].code == 0x2000:  # CDP
+                PDUS.append("CDP")
+                CNT += 1
+                return
+            elif packet[SNAP].code == 0x2004:  # DTP
+                PDUS.append("DTP")
+                CNT += 1
+                return
     # Else increment data count
     DATA += 1
-    
+    return
 
 
 def piePlot(x, y):
@@ -60,7 +70,7 @@ def piePlot(x, y):
     plt.pie(pie, labels=[f"Data ({x})", f"Control ({y})"], explode=[0, 0.2])
     plt.legend(title="PDUs:")
     # Save graph to file
-    plt.savefig(f"statistics\Sample {FILENAME}_ratio.png")
+    plt.savefig(f"statistics/Sample {FILENAME}_ratio.png")
     # Show graph
     plt.show()
 
@@ -80,7 +90,7 @@ def barPlot():
     plt.xlabel("PDUs")
     plt.ylabel("Count")
     # Save graph to file
-    plt.savefig(f"statistics\Sample {FILENAME}_cntrl_pdus.png")
+    plt.savefig(f"statistics/Sample {FILENAME}_cntrl_pdus.png")
     # Show graph
     plt.show()
 

@@ -5,7 +5,7 @@ from ipwhois import IPWhois
 from scapy.all import *
 
 
-IFACE = "Wi-Fi"  # Network intefrace used
+IFACE = "Wi-Fi"  # Network intefrace used, change accodrding to interface used
 
 # Table to translate protocol numbers to name
 prefix = "IPPROTO_"
@@ -18,7 +18,9 @@ proto_table = {
 
 def getHost(iface):
     """Get Host IP and Subnet Mask (only works on windows)"""
-    proc = subprocess.Popen("ipconfig", stdout=subprocess.PIPE)  # Run ipcofig command
+    proc = subprocess.Popen(
+        "ipconfig", stdout=subprocess.PIPE
+    )  # Run ipcofig command in cmd
     while True:
         # Read lines until correct network interface is found
         line = proc.stdout.readline()
@@ -226,26 +228,26 @@ def translatePort(port, proto):
 def analyzeL2(packet):
     """Analyzes layer 2 of the packet"""
     # PDU header info
-    eth_pdu_type = ("Ethernet II" if packet.name == "Ethernet" else packet.name)  # 802.3, 802.11, Ethernet ii,...
+    eth_pdu_type = (
+        "Ethernet II" if packet.name == "Ethernet" else packet.name
+    )  # 802.3, 802.11, Ethernet ii,...
     src_mac = packet.src
     dst_mac = packet.dst
-
     # If packet is Ethernet II packet find protocol
     if packet.haslayer(Ether):
         try:
-            packet_proto = ETHER_TYPES[packet[Ether].type]
+            packet_proto = ETHER_TYPES[
+                packet[Ether].type
+            ]  # Try to translate type no. to name
         except:
             packet_proto = packet[Ether].type
-
     # If packet is another standard, find protcol type by index
     else:
         try:
             packet_proto = str(packet[2]).split(" ")[0]  # Protocol: STP, ICMP, ARP,...
         except:
             packet_proto = None
-
     size = len(packet)
-
     # Determine if packet is unicast, multicast, or broadcast
     if dst_mac == "ff:ff:ff:ff:ff:ff":
         packet_type = "Broadcast"
@@ -350,17 +352,18 @@ def analyzeL4(packet):
     return {"src_port": src_port, "dst_port": dst_port, "proto": proto.upper()}
 
 
+def hexToBin(n):
+    """Convert hexadecimal to binary"""
+    return bin(int(n, 16))[2:].zfill(8)
+
+
 def convHex(hexdump):
-    """Converts a hexdump to bits (0 and 1)"""\
+    """Converts a hexdump to bits (0 and 1)"""
     # Find all bytes in the dump
     hex_bytes = re.findall(r" ([\dABCDEF]{2})", hexdump)
 
-    # Convert hexadecimal to binary
-    def hexToBin(n):
-        return bin(int(n, 16))[2:].zfill(8)
-    
     # Map conversion function to all bytes
     bin_bytes = map(hexToBin, hex_bytes)
-    
+
     # Return raw bits
     return " ".join(list(bin_bytes))
